@@ -1,18 +1,18 @@
 ﻿using System;
-using System.Web.Mvc;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Runtime.Remoting.Messaging;
+using System.Net;
+using System.Web.Mvc;
+using System.Web.Script.Serialization;
 using MvcReportViewer.Example.localhost;
-
 
 namespace MvcReportViewer.Example.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly string ReportName = ConfigurationManager.AppSettings[WebConfigSettings.TestReportName];
-        private readonly string ReportServiceUrl = ConfigurationManager.AppSettings[WebConfigSettings.ReportServiceUrl];
-        private readonly string SsrsReportRoot = ConfigurationManager.AppSettings[WebConfigSettings.SsrsReportRoot];
+        private readonly string _reportName = ConfigurationManager.AppSettings[WebConfigSettings.TestReportName];
+        private readonly string _reportServiceUrl = ConfigurationManager.AppSettings[WebConfigSettings.ReportServiceUrl];
+        private readonly string _ssrsReportRoot = ConfigurationManager.AppSettings[WebConfigSettings.SsrsReportRoot];
 
         public ActionResult Index()
         {
@@ -29,14 +29,12 @@ namespace MvcReportViewer.Example.Controllers
         {
             ReportingService2010 rs = new ReportingService2010();
 
-            rs.Credentials = System.Net.CredentialCache.DefaultCredentials;
-            rs.Url = ReportServiceUrl;
-
-            ReportHierarchy reportHierarchy = new ReportHierarchy();
+            rs.Credentials = CredentialCache.DefaultCredentials;
+            rs.Url = _reportServiceUrl;
             
-            IDictionary<string, string> catalogList = new Dictionary<string, string>();
-            LoadSsrsCatalog(rs, ReportHierarchy.CatalogEntries, SsrsReportRoot, 0);
-
+            // Must initialize reportHierarchy before loading catalog
+            ReportHierarchy reportHierarchy = new ReportHierarchy();
+            LoadSsrsCatalog(rs, ReportHierarchy.CatalogEntries, _ssrsReportRoot, 0);
         }
 
         private void LoadSsrsCatalog(ReportingService2010 rs,  IList<CatalogEntry> catalogList , string dir, int parentId)
@@ -92,9 +90,16 @@ namespace MvcReportViewer.Example.Controllers
             }
         }
 
-        public MvcReportViewerIframe GetMvcReportViewerQueryString()
+        public MvcReportViewerIframe GetMvcReportViewerIFrame(string path, string parm)
         {
-            MvcReportViewerIframe result = MvcReportViewerExtensions.MvcReportViewer(null, Request.QueryString[0]);
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+
+            // Deserialize the parm/attr to dictionary format for the viewer extension
+
+            IDictionary<string, object> reportParameters = serializer.Deserialize<IDictionary<string, object>>(parm);
+            IDictionary<string, object> htmlAttributes = new Dictionary<string, object>();
+
+            MvcReportViewerIframe result = MvcReportViewerExtensions.MvcReportViewer(null, path, reportParameters, htmlAttributes);
 
             return result;
         }
@@ -138,7 +143,7 @@ namespace MvcReportViewer.Example.Controllers
         {
             return this.Report(
                 format,
-                ReportName,
+                _reportName,
                 new { Parameter1 = "Hello World!", Parameter2 = DateTime.Now, Parameter3 = 12345 });
         }
 
@@ -146,7 +151,7 @@ namespace MvcReportViewer.Example.Controllers
         {
             return this.Report(
                 format,
-                ReportName,
+                _reportName,
                 new List<KeyValuePair<string, object>>
                 {
                     new KeyValuePair<string, object>("Parameter1", "Value 1"),

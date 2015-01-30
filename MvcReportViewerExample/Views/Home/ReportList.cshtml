@@ -1,8 +1,9 @@
-﻿@using System.Configuration
-@using System.Net.Mime
-@using MvcReportViewer
+﻿@using MvcReportViewer
+
+<input id="Parameter1" type="hidden" value="Parameter 1 Value"/>
+
 <section>
-    <article class="main">
+    <article class="main"> 
         <h2>Reports</h2>
         <div class="dd" id="nestable">
             <ol class="dd-list">
@@ -35,12 +36,12 @@
                 <div id="@fullPath" class="dd-handle dd-select">@dto.ItemName</div>
             }
 
-            if (children.Count() > 0)
+            if (children.Any())
             {
                 <ol class="dd-list">
                     @foreach (var child in children)
                     {
-                        @AddChildren(child);
+                        @AddChildren(child)
                     }
                 </ol>
             }
@@ -77,39 +78,47 @@
     }
 
     function initReportViewer() {
-        $('.dd-select').click(function(e) {
+        $('.dd-select').click(function() {
 
             // reformat report path for SSRS
             var reportPath = "/" + this.id.replace(".", "/");
             reportPath = reportPath.replace(".", "/");
 
             if (this.innerText !== "") {
+
+                // Get the parm value from the screen inputs
+                var queryParm = { 'Parameter1': document.getElementById("Parameter1").value };
+
+                // Put the reportname in the heading
                 document.getElementById("ReportName").innerHTML = this.innerText;
 
                 // Call Helper method to get encrypted query string and place result on page
-                iframe = createMvcReportViewQueryString(reportPath);
+                iframe = createMvcReportViewerIFrame(reportPath, queryParm);
                 document.getElementById("ReportOutput").innerHTML = iframe;
             }
             return false;
         });
     }
 
-    function createMvcReportViewQueryString(reportPath) {
-        var queryString = "No QueryString";
+    function createMvcReportViewerIFrame(reportPath, queryParm) {
+
+        var queryString = "No IFrame Created";
 
         $.ajax({
+            type: "POST",
             async: false,
             cache: false,
-            url: "~/../GetMvcReportViewerQueryString",
+            url: '@Url.Action("GetMvcReportViewerIFrame", "Home")',
             data: {
-                queryString: reportPath
+                path: reportPath,
+                parm: JSON.stringify(queryParm)
             },
             success: function (data) {
                 // Get correct position for viewer
                 queryString = data.replace("/MvcReportViewer","/../MvcReportViewer");
             },
-            error: function (xhr, ajaxOptions, thrownError) {
-                //some errror, some show err msg to user 
+            error: function (xhr) {
+                //some errror, some show err msg to user
                 document.getElementById("ReportOutput").innerHTML = xhr.responseText;
             }
         });
